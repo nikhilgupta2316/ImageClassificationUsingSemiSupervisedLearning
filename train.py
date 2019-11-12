@@ -20,7 +20,11 @@ class ModelTrainer:
         self.args = args
 
         # Data Augmentation
-        transformations_img = [
+        transformations_img_train = [
+            transforms.ToTensor(),
+            transforms.Normalize(self.args.cifar10_mean_color, self.args.cifar10_std_color)
+        ]
+        transformations_img_test = [
             transforms.ToTensor(),
             transforms.Normalize(self.args.cifar10_mean_color, self.args.cifar10_std_color)
         ]
@@ -29,17 +33,18 @@ class ModelTrainer:
                 transforms.RandomCrop(self.args.random_crop_size, padding=self.args.random_crop_pad),
                 transforms.RandomHorizontalFlip(),
             ]
-            transformations_img = data_aug_transform + transformations_img
-        transform = transforms.Compose(transformations_img)
+            transformations_img_train = data_aug_transform + transformations_img_train
+        transform_train = transforms.Compose(transformations_img_train)
+        transform_test = transforms.Compose(transformations_img_test)
 
         # Datasets
         if self.args.eval is False:
             self.train_dataset = CIFAR10(self.args.cifar10_dir, split='train', download=True,
-                                    transform=transform)
+                                    transform=transform_train)
             self.val_dataset = CIFAR10(self.args.cifar10_dir, split='val', download=True,
-                                    transform=transform)
+                                    transform=transform_test)
         self.test_dataset = CIFAR10(self.args.cifar10_dir, split='test', download=True,
-                                transform=transform)
+                                transform=transform_test)
 
         # Data Loaders
         if self.args.eval is False:
