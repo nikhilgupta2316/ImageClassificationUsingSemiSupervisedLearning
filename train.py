@@ -56,9 +56,9 @@ class ModelTrainer:
             self.train_loader = torch.utils.data.DataLoader(self.train_dataset,
                             batch_size=self.args.batch_size, shuffle=True)
             self.val_loader = torch.utils.data.DataLoader(self.val_dataset,
-                            batch_size=self.args.batch_size, shuffle=True)
+                            batch_size=self.args.test_batch_size, shuffle=True)
         self.test_loader = torch.utils.data.DataLoader(self.test_dataset,
-                        batch_size=self.args.batch_size, shuffle=True)
+                        batch_size=self.args.test_batch_size, shuffle=True)
 
         # Load the model
         if self.args.model == "softmax":
