@@ -44,9 +44,9 @@ parser.add_argument('--random-crop-pad', type=int, default=4,
 # Testing
 parser.add_argument('--eval', action='store_true', default=False,
                     help='Only evaluate saved model')
+parser.add_argument('--eval-checkpoint', type=str, default="", help="Evalute model at checkpoint path")
 parser.add_argument('--test-batch-size', type=int, default=1000,
                     help='Batch size for testing')
-
 # Logging
 
 parser.add_argument('--tensorboard', action='store_true', default=False,

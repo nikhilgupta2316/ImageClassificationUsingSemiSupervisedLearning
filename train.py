@@ -19,6 +19,11 @@ class ModelTrainer:
     def __init__(self, args):
         self.args = args
 
+        if self.args.eval:
+            if self.args.eval_checkpoint=="":
+                raise ValueError("Eval mode is set, but no checkpoint path is provided!")
+            self.loader = torch.load(self.args.eval_checkpoint)
+
         # Data Augmentation
         transformations_img_train = [
             transforms.ToTensor(),
@@ -61,31 +66,37 @@ class ModelTrainer:
         else:
             raise Exception("Unknown model {}".format(self.args.model))
 
+        if self.args.eval:
+            self.model.load_state_dict(self.loader)
+
         if self.args.cuda:
             self.model.cuda()
-
-        if self.args.optimiser == "sgd":
-            self.opt = optim.SGD(self.model.parameters(), lr=self.args.learning_rate, momentum=self.args.momentum,
-                weight_decay=self.args.weight_decay)
-        else:
-            raise Exception("Unknown optimiser {}".format(self.args.optim))
-
-        if self.args.lr_scheduler:
-            self.lr_scheduler = optim.lr_scheduler.MultiStepLR(self.opt,
-                                                    milestones=self.args.lr_schedule,
-                                                    gamma=self.args.lr_decay_factor)
-
-        self.criterion = nn.CrossEntropyLoss()
 
         self.best_test_accuracy = 0.0
         self.best_test_epoch = 0
 
-        self.args.logdir = os.path.join("checkpoints", self.args.exp_name)
-        utils.create_dir(self.args.logdir)
+        if self.args.eval is False:
 
-        if self.args.tensorboard:
-            self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
-            self.writer.add_text("Arguments", params.print_args(self.args))
+            if self.args.optimiser == "sgd":
+                self.opt = optim.SGD(self.model.parameters(), lr=self.args.learning_rate, momentum=self.args.momentum,
+                    weight_decay=self.args.weight_decay)
+            else:
+                raise Exception("Unknown optimiser {}".format(self.args.optim))
+
+            if self.args.lr_scheduler:
+                self.lr_scheduler = optim.lr_scheduler.MultiStepLR(self.opt,
+                                                        milestones=self.args.lr_schedule,
+                                                        gamma=self.args.lr_decay_factor)
+
+            # Loss function
+            self.criterion = nn.CrossEntropyLoss()
+
+            self.args.logdir = os.path.join("checkpoints", self.args.exp_name)
+            utils.create_dir(self.args.logdir)
+
+            if self.args.tensorboard:
+                self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
+                self.writer.add_text("Arguments", params.print_args(self.args))
 
 
     def train_val(self, epoch):
@@ -163,6 +174,9 @@ class ModelTrainer:
                 self.best_test_accuracy = acc
                 self.best_test_epoch = epoch
             if verbose:
+                if epoch is None:
+                    epoch = 0
+                    self.best_test_epoch = 0
                 loss, acc = utils.convert_for_print(loss, acc)
                 print(
                     "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)" %
@@ -188,8 +202,8 @@ class ModelTrainer:
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
-                print("Saved %s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
-                torch.save(self.model, "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
+                print("Saved %s/%s_epoch%d.pt\n" % (self.args.logdir, self.args.exp_name, epoch))
+                torch.save(self.model.state_dict(), "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
         self.writer.close()
 
 
@@ -200,4 +214,4 @@ if __name__ == "__main__":
     if args.eval is False:
         trainer.train_val_test()
     if args.eval is True:
-        trainer.evaluate()
+        trainer.evaluate("Test", verbose=True)
