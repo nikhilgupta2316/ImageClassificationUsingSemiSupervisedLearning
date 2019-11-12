@@ -16,26 +16,35 @@ from models.softmax import Softmax
 
 class ModelTrainer:
     """Class for training and testing of model"""
+
     def __init__(self, args):
         self.args = args
 
         if self.args.eval:
-            if self.args.eval_checkpoint=="":
-                raise ValueError("Eval mode is set, but no checkpoint path is provided!")
+            if self.args.eval_checkpoint == "":
+                raise ValueError(
+                    "Eval mode is set, but no checkpoint path is provided!"
+                )
             self.loader = torch.load(self.args.eval_checkpoint)
 
         # Data Augmentation
         transformations_img_train = [
             transforms.ToTensor(),
-            transforms.Normalize(self.args.cifar10_mean_color, self.args.cifar10_std_color)
+            transforms.Normalize(
+                self.args.cifar10_mean_color, self.args.cifar10_std_color
+            ),
         ]
         transformations_img_test = [
             transforms.ToTensor(),
-            transforms.Normalize(self.args.cifar10_mean_color, self.args.cifar10_std_color)
+            transforms.Normalize(
+                self.args.cifar10_mean_color, self.args.cifar10_std_color
+            ),
         ]
         if self.args.data_aug:
             data_aug_transform = [
-                transforms.RandomCrop(self.args.random_crop_size, padding=self.args.random_crop_pad),
+                transforms.RandomCrop(
+                    self.args.random_crop_size, padding=self.args.random_crop_pad
+                ),
                 transforms.RandomHorizontalFlip(),
             ]
             transformations_img_train = data_aug_transform + transformations_img_train
@@ -44,21 +53,33 @@ class ModelTrainer:
 
         # Datasets
         if self.args.eval is False:
-            self.train_dataset = CIFAR10(self.args.cifar10_dir, split='train', download=True,
-                                    transform=transform_train)
-            self.val_dataset = CIFAR10(self.args.cifar10_dir, split='val', download=True,
-                                    transform=transform_test)
-        self.test_dataset = CIFAR10(self.args.cifar10_dir, split='test', download=True,
-                                transform=transform_test)
+            self.train_dataset = CIFAR10(
+                self.args.cifar10_dir,
+                split="train",
+                download=True,
+                transform=transform_train,
+            )
+            self.val_dataset = CIFAR10(
+                self.args.cifar10_dir,
+                split="val",
+                download=True,
+                transform=transform_test,
+            )
+        self.test_dataset = CIFAR10(
+            self.args.cifar10_dir, split="test", download=True, transform=transform_test
+        )
 
         # Data Loaders
         if self.args.eval is False:
-            self.train_loader = torch.utils.data.DataLoader(self.train_dataset,
-                            batch_size=self.args.batch_size, shuffle=True)
-            self.val_loader = torch.utils.data.DataLoader(self.val_dataset,
-                            batch_size=self.args.test_batch_size, shuffle=True)
-        self.test_loader = torch.utils.data.DataLoader(self.test_dataset,
-                        batch_size=self.args.test_batch_size, shuffle=True)
+            self.train_loader = torch.utils.data.DataLoader(
+                self.train_dataset, batch_size=self.args.batch_size, shuffle=True
+            )
+            self.val_loader = torch.utils.data.DataLoader(
+                self.val_dataset, batch_size=self.args.test_batch_size, shuffle=True
+            )
+        self.test_loader = torch.utils.data.DataLoader(
+            self.test_dataset, batch_size=self.args.test_batch_size, shuffle=True
+        )
 
         # Load the model
         if self.args.model == "softmax":
@@ -78,15 +99,21 @@ class ModelTrainer:
         if self.args.eval is False:
 
             if self.args.optimiser == "sgd":
-                self.opt = optim.SGD(self.model.parameters(), lr=self.args.learning_rate, momentum=self.args.momentum,
-                    weight_decay=self.args.weight_decay)
+                self.opt = optim.SGD(
+                    self.model.parameters(),
+                    lr=self.args.learning_rate,
+                    momentum=self.args.momentum,
+                    weight_decay=self.args.weight_decay,
+                )
             else:
                 raise Exception("Unknown optimiser {}".format(self.args.optim))
 
             if self.args.lr_scheduler:
-                self.lr_scheduler = optim.lr_scheduler.MultiStepLR(self.opt,
-                                                        milestones=self.args.lr_schedule,
-                                                        gamma=self.args.lr_decay_factor)
+                self.lr_scheduler = optim.lr_scheduler.MultiStepLR(
+                    self.opt,
+                    milestones=self.args.lr_schedule,
+                    gamma=self.args.lr_decay_factor,
+                )
 
             # Loss function
             self.criterion = nn.CrossEntropyLoss()
@@ -97,7 +124,6 @@ class ModelTrainer:
             if self.args.tensorboard:
                 self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
                 self.writer.add_text("Arguments", params.print_args(self.args))
-
 
     def train_val(self, epoch):
         """Train the model for one epoch and evaluate on val split if log_intervals have passed"""
@@ -118,9 +144,11 @@ class ModelTrainer:
             self.opt.step()
 
             if batch_idx % self.args.log_interval == 0:
-                val_loss, val_acc = self.evaluate('Val', n_batches=4)
+                val_loss, val_acc = self.evaluate("Val", n_batches=4)
 
-                train_loss, val_loss, val_acc = utils.convert_for_print(loss, val_loss, val_acc)
+                train_loss, val_loss, val_acc = utils.convert_for_print(
+                    loss, val_loss, val_acc
+                )
 
                 if self.args.tensorboard:
                     self.writer.add_scalar("Loss_at_Iter/Train", train_loss, self.iter)
@@ -128,12 +156,19 @@ class ModelTrainer:
                     self.writer.add_scalar("Accuracy_at_Iter/Val", val_acc, self.iter)
 
                 examples_this_epoch = batch_idx * len(images)
-                epoch_progress = 100. * batch_idx / len(self.train_loader)
+                epoch_progress = 100.0 * batch_idx / len(self.train_loader)
                 print(
                     "Train Epoch: %3d [%5d/%5d (%5.1f%%)]\t "
-                    "Train Loss: %0.6f\t Val Loss: %0.6f\t Val Acc: %0.1f" %
-                    (epoch, examples_this_epoch, len(self.train_loader.dataset),
-                    epoch_progress, train_loss, val_loss, val_acc)
+                    "Train Loss: %0.6f\t Val Loss: %0.6f\t Val Acc: %0.1f"
+                    % (
+                        epoch,
+                        examples_this_epoch,
+                        len(self.train_loader.dataset),
+                        epoch_progress,
+                        train_loss,
+                        val_loss,
+                        val_acc,
+                    )
                 )
         if self.args.tensorboard:
             self.writer.add_scalar("Loss_at_Epoch/Train", train_loss, epoch)
@@ -168,9 +203,9 @@ class ModelTrainer:
                     break
 
             loss /= n_examples
-            acc = 100. * correct / n_examples
+            acc = 100.0 * correct / n_examples
 
-            if split=="Test" and acc >= self.best_test_accuracy:
+            if split == "Test" and acc >= self.best_test_accuracy:
                 self.best_test_accuracy = acc
                 self.best_test_epoch = epoch
             if verbose:
@@ -179,17 +214,21 @@ class ModelTrainer:
                     self.best_test_epoch = 0
                 loss, acc = utils.convert_for_print(loss, acc)
                 print(
-                    "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)" %
-                    (split, epoch, loss, correct, n_examples, acc)
+                    "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)"
+                    % (split, epoch, loss, correct, n_examples, acc)
                 )
                 print(
-                    "Best %s split Performance: Epoch %d - Accuracy: %0.1f%%" %
-                    (split, self.best_test_epoch, self.best_test_accuracy)
+                    "Best %s split Performance: Epoch %d - Accuracy: %0.1f%%"
+                    % (split, self.best_test_epoch, self.best_test_accuracy)
                 )
                 if self.args.tensorboard:
                     self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
                     self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
-                    self.writer.add_scalar("Accuracy_at_Epoch/Best_Test_Accuracy", self.best_test_accuracy, self.best_test_epoch)
+                    self.writer.add_scalar(
+                        "Accuracy_at_Epoch/Best_Test_Accuracy",
+                        self.best_test_accuracy,
+                        self.best_test_epoch,
+                    )
 
         return loss, acc
 
@@ -202,8 +241,14 @@ class ModelTrainer:
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
-                print("Saved %s/%s_epoch%d.pt\n" % (self.args.logdir, self.args.exp_name, epoch))
-                torch.save(self.model.state_dict(), "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
+                print(
+                    "Saved %s/%s_epoch%d.pt\n"
+                    % (self.args.logdir, self.args.exp_name, epoch)
+                )
+                torch.save(
+                    self.model.state_dict(),
+                    "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch),
+                )
         self.writer.close()
 
 

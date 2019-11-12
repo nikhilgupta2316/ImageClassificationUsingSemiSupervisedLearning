@@ -20,7 +20,9 @@ def convert_for_print(*args):
             processed_args.append(variable)
             continue
         if len(variable.shape) != 0:
-            raise ValueError("only one element tensors can be converted to Python scalars")
+            raise ValueError(
+                "only one element tensors can be converted to Python scalars"
+            )
         variable = variable.item()
         processed_args.append(variable)
     return processed_args
