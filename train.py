@@ -188,8 +188,7 @@ class ModelTrainer:
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
-                # TODO: fix this
-                print("%s/%s_Epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
+                print("Saved %s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
                 torch.save(self.model, "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
         self.writer.close()
 
