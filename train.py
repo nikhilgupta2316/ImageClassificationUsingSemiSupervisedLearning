@@ -133,49 +133,49 @@ class ModelTrainer:
         """Evaluate model on val or test data"""
 
         self.model.eval()
-        # TODO: Add no grad
-        loss = 0
-        correct = 0
-        n_examples = 0
+        with torch.no_grad():
+            loss = 0
+            correct = 0
+            n_examples = 0
 
-        if split == "Val":
-            loader = self.val_loader
-        elif split == "Test":
-            loader = self.test_loader
+            if split == "Val":
+                loader = self.val_loader
+            elif split == "Test":
+                loader = self.test_loader
 
-        for batch_idx, batch in enumerate(loader):
-            images, targets = batch
-            if args.cuda:
-                images, targets = images.cuda(), targets.cuda()
+            for batch_idx, batch in enumerate(loader):
+                images, targets = batch
+                if args.cuda:
+                    images, targets = images.cuda(), targets.cuda()
 
-            logits, unnormalised_scores = self.model(images)
-            loss += F.cross_entropy(unnormalised_scores, targets, reduction="sum")
-            pred = logits.max(1, keepdim=False)[1]
-            correct += pred.eq(targets).sum()
-            n_examples += pred.shape[0]
-            if n_batches and (batch_idx >= n_batches):
-                break
+                logits, unnormalised_scores = self.model(images)
+                loss += F.cross_entropy(unnormalised_scores, targets, reduction="sum")
+                pred = logits.max(1, keepdim=False)[1]
+                correct += pred.eq(targets).sum()
+                n_examples += pred.shape[0]
+                if n_batches and (batch_idx >= n_batches):
+                    break
 
-        loss /= n_examples
-        acc = 100. * correct / n_examples
+            loss /= n_examples
+            acc = 100. * correct / n_examples
 
-        if split=="Test" and acc >= self.best_test_accuracy:
-            self.best_test_accuracy = acc
-            self.best_test_epoch = epoch
-        if verbose:
-            loss, acc = utils.convert_for_print(loss, acc)
-            print(
-                "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)" %
-                (split, epoch, loss, correct, n_examples, acc)
-            )
-            print(
-                "Best %s split Performance: Epoch %d - Accuracy: %0.1f%%" %
-                (split, self.best_test_epoch, self.best_test_accuracy)
-            )
-            if self.args.tensorboard:
-                self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
-                self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
-                self.writer.add_scalar("Accuracy_at_Epoch/Best_Test_Accuracy", self.best_test_accuracy, self.best_test_epoch)
+            if split=="Test" and acc >= self.best_test_accuracy:
+                self.best_test_accuracy = acc
+                self.best_test_epoch = epoch
+            if verbose:
+                loss, acc = utils.convert_for_print(loss, acc)
+                print(
+                    "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)" %
+                    (split, epoch, loss, correct, n_examples, acc)
+                )
+                print(
+                    "Best %s split Performance: Epoch %d - Accuracy: %0.1f%%" %
+                    (split, self.best_test_epoch, self.best_test_accuracy)
+                )
+                if self.args.tensorboard:
+                    self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
+                    self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
+                    self.writer.add_scalar("Accuracy_at_Epoch/Best_Test_Accuracy", self.best_test_accuracy, self.best_test_epoch)
 
         return loss, acc
 
