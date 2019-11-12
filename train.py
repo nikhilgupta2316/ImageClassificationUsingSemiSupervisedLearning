@@ -77,6 +77,9 @@ class ModelTrainer:
 
         self.criterion = nn.CrossEntropyLoss()
 
+        self.best_test_accuracy = 0.0
+        self.best_test_epoch = 0
+
         self.args.logdir = os.path.join("checkpoints", self.args.exp_name)
         utils.create_dir(self.args.logdir)
 
@@ -130,6 +133,7 @@ class ModelTrainer:
         """Evaluate model on val or test data"""
 
         self.model.eval()
+        # TODO: Add no grad
         loss = 0
         correct = 0
         n_examples = 0
@@ -154,15 +158,24 @@ class ModelTrainer:
 
         loss /= n_examples
         acc = 100. * correct / n_examples
+
+        if split=="Test" and acc >= self.best_test_accuracy:
+            self.best_test_accuracy = acc
+            self.best_test_epoch = epoch
         if verbose:
             loss, acc = utils.convert_for_print(loss, acc)
             print(
-                "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)\n" %
+                "\n%s set Epoch: %2d \t Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)" %
                 (split, epoch, loss, correct, n_examples, acc)
+            )
+            print(
+                "Best %s split Performance: Epoch %d - Accuracy: %0.1f%%" %
+                (split, self.best_test_epoch, self.best_test_accuracy)
             )
             if self.args.tensorboard:
                 self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
                 self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
+                self.writer.add_scalar("Accuracy_at_Epoch/Best_Test_Accuracy", self.best_test_accuracy, self.best_test_epoch)
 
         return loss, acc
 
@@ -175,6 +188,7 @@ class ModelTrainer:
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
+                # TODO: fix this
                 print("%s/%s_Epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
                 torch.save(self.model, "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch))
         self.writer.close()
