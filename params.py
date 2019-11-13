@@ -89,6 +89,12 @@ parser.add_argument(
 )
 # Logging
 parser.add_argument(
+    "--filelogger",
+    action="store_true",
+    default=False,
+    help="Save all the printed info in a file",
+)
+parser.add_argument(
     "--tensorboard",
     action="store_true",
     default=False,

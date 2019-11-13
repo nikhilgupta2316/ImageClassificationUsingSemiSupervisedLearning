@@ -121,6 +121,20 @@ class ModelTrainer:
             self.args.logdir = os.path.join("checkpoints", self.args.exp_name)
             utils.create_dir(self.args.logdir)
 
+            if self.args.filelogger:
+                self.logger_path = os.path.join("checkpoints", self.args.exp_name, "%s_values.log" % self.args.exp_name)
+                self.logger = {
+                    "train_loss_per_iter": [],
+                    "train_loss_per_epoch": [],
+                    "val_loss_per_iter": [],
+                    "val_loss_per_epoch": [],
+                    "val_accuracy_per_iter": [],
+                    "val_accuracy_per_epoch": [],
+                    "test_loss": [],
+                    "test_accuracy": [],
+                    "best_epoch": 0,
+                    "best_test_accuracy": 0.0
+                }
             if self.args.tensorboard:
                 self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
                 self.writer.add_text("Arguments", params.print_args(self.args))
@@ -150,6 +164,11 @@ class ModelTrainer:
                     loss, val_loss, val_acc
                 )
 
+                if self.args.filelogger:
+                    self.logger["train_loss_per_iter"].append([self.iter, train_loss])
+                    self.logger["val_loss_per_iter"].append([self.iter, val_loss])
+                    self.logger["val_accuracy_per_iter"].append([self.iter, val_acc])
+
                 if self.args.tensorboard:
                     self.writer.add_scalar("Loss_at_Iter/Train", train_loss, self.iter)
                     self.writer.add_scalar("Loss_at_Iter/Val", val_loss, self.iter)
@@ -170,6 +189,12 @@ class ModelTrainer:
                         val_acc,
                     )
                 )
+
+        if self.args.filelogger:
+            self.logger["train_loss_per_epoch"].append([epoch, train_loss])
+            self.logger["val_loss_per_epoch"].append([epoch, val_loss])
+            self.logger["val_accuracy_per_epoch"].append([epoch, val_acc])
+
         if self.args.tensorboard:
             self.writer.add_scalar("Loss_at_Epoch/Train", train_loss, epoch)
             self.writer.add_scalar("Loss_at_Epoch/Val", val_loss, epoch)
@@ -206,8 +231,11 @@ class ModelTrainer:
             acc = 100.0 * correct / n_examples
 
             if split == "Test" and acc >= self.best_test_accuracy:
-                self.best_test_accuracy = acc
+                self.best_test_accuracy = utils.convert_for_print(acc)
                 self.best_test_epoch = epoch
+                if self.args.filelogger:
+                    self.logger["best_epoch"] = self.best_test_epoch
+                    self.logger["best_test_accuracy"] = self.best_test_accuracy
             if verbose:
                 if epoch is None:
                     epoch = 0
@@ -221,6 +249,10 @@ class ModelTrainer:
                     "Best %s split Performance: Epoch %d - Accuracy: %0.1f%%"
                     % (split, self.best_test_epoch, self.best_test_accuracy)
                 )
+
+                if self.args.filelogger:
+                    self.logger["test_loss"].append([epoch, loss])
+                    self.logger["test_accuracy"].append([epoch, acc])
                 if self.args.tensorboard:
                     self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
                     self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
@@ -250,6 +282,8 @@ class ModelTrainer:
                     "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch),
                 )
         self.writer.close()
+        if self.args.filelogger:
+            utils.write_log_to_json(self.logger_path, self.logger)
 
 
 if __name__ == "__main__":

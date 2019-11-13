@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import numpy as np
 import torch
@@ -25,6 +26,8 @@ def convert_for_print(*args):
             )
         variable = variable.item()
         processed_args.append(variable)
+    if(len(processed_args)==1):
+        processed_args=processed_args[0]
     return processed_args
 
 
@@ -34,3 +37,9 @@ def create_dir(directory):
         print("Created %s" % directory)
     else:
         print("%s Already Exists!" % directory)
+
+
+def write_log_to_json(path, log):
+    with open(path, 'w') as outfile:
+        json.dump(log, outfile, sort_keys=True, indent=4, separators=(',', ': '))
+    print("Saved log file: %s" % path)

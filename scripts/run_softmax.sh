@@ -10,6 +10,7 @@ flags="--model softmax \
        --epochs 5 \
        --batch-size 512 \
        --exp-name softmax \
-       --tensorboard "
+       --tensorboard \
+       --filelogger "
 
 unbuffer python train.py $flags | tee checkpoints/softmax.log
