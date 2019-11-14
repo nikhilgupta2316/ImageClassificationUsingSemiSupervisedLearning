@@ -12,7 +12,7 @@ import utils
 from dataloader import CIFAR10
 
 from models.softmax import Softmax
-
+from models.alexnet import AlexNet 
 
 class ModelTrainer:
     """Class for training and testing of model"""
@@ -40,6 +40,11 @@ class ModelTrainer:
                 self.args.cifar10_mean_color, self.args.cifar10_std_color
             ),
         ]
+
+        if (self.args.model == "alexnet"):
+            transformations_img_train = [transforms.Resize((224,224))] + transformations_img_train
+            transformations_img_test = [transforms.Resize((224,224))] + transformations_img_test
+
         if self.args.data_aug:
             data_aug_transform = [
                 transforms.RandomCrop(
@@ -84,6 +89,8 @@ class ModelTrainer:
         # Load the model
         if self.args.model == "softmax":
             self.model = Softmax(self.args.image_size, self.args.no_of_classes)
+        elif self.args.model == "alexnet":
+            self.model = AlexNet(self.args.image_size, self.args.no_of_classes)
         else:
             raise Exception("Unknown model {}".format(self.args.model))
 
