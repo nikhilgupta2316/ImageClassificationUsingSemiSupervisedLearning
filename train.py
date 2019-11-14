@@ -1,17 +1,18 @@
 import os
-
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-
+import PIL
 import params
 import utils
 from dataloader import CIFAR10
 
 from models.softmax import Softmax
+from models.resnet import ResNet18
 
 
 class ModelTrainer:
@@ -28,18 +29,31 @@ class ModelTrainer:
             self.loader = torch.load(self.args.eval_checkpoint)
 
         # Data Augmentation
-        transformations_img_train = [
-            transforms.ToTensor(),
-            transforms.Normalize(
-                self.args.cifar10_mean_color, self.args.cifar10_std_color
-            ),
-        ]
-        transformations_img_test = [
-            transforms.ToTensor(),
-            transforms.Normalize(
-                self.args.cifar10_mean_color, self.args.cifar10_std_color
-            ),
-        ]
+        if self.args.model == "resnet":
+          transformations_img_train = [
+              transforms.RandomHorizontalFlip(),
+              transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
+              transforms.ToTensor(),
+          ]
+          
+          transformations_img_test = [
+              # transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
+              transforms.ToTensor(),
+          ]
+        else:
+          transformations_img_train = [
+              transforms.ToTensor(),
+              transforms.Normalize(
+                  self.args.cifar10_mean_color, self.args.cifar10_std_color
+              ),
+          ]
+          
+          transformations_img_test = [
+              transforms.ToTensor(),
+              transforms.Normalize(
+                  self.args.cifar10_mean_color, self.args.cifar10_std_color
+              ),
+          ]
         if self.args.data_aug:
             data_aug_transform = [
                 transforms.RandomCrop(
@@ -84,6 +98,8 @@ class ModelTrainer:
         # Load the model
         if self.args.model == "softmax":
             self.model = Softmax(self.args.image_size, self.args.no_of_classes)
+        elif self.args.model == "resnet":
+            self.model = ResNet18()
         else:
             raise Exception("Unknown model {}".format(self.args.model))
 
@@ -105,6 +121,8 @@ class ModelTrainer:
                     momentum=self.args.momentum,
                     weight_decay=self.args.weight_decay,
                 )
+            elif self.args.optimiser == "adam":
+                self.opt = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
             else:
                 raise Exception("Unknown optimiser {}".format(self.args.optim))
 
@@ -114,6 +132,28 @@ class ModelTrainer:
                     milestones=self.args.lr_schedule,
                     gamma=self.args.lr_decay_factor,
                 )
+            if self.args.lr_lambda_scheduler:
+              def lr_multiplier(epoch):
+                if epoch > 180:
+                    return 0.5e-9
+                elif epoch > 160:
+                    return 1e-6
+                elif epoch > 120:
+                    return 1e-3
+                elif epoch > 80:
+                    return 1e-1
+                else:
+                  return 1
+               
+              lrMultiplier = lambda epoch: lr_multiplier(epoch)
+
+              self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lr_lambda=[lrMultiplier])
+
+            if self.args.lr_reducer:
+                self.lr_reducer = torch.optim.lr_scheduler.ReduceLROnPlateau(self.opt, factor=np.sqrt(0.1),
+                                                                        cooldown=0,
+                                                                        patience=5,
+                                                                        min_lr=0.5e-6)
 
             # Loss function
             self.criterion = nn.CrossEntropyLoss()
@@ -160,6 +200,8 @@ class ModelTrainer:
             if batch_idx % self.args.log_interval == 0:
                 val_loss, val_acc = self.evaluate("Val", n_batches=4)
 
+                
+
                 train_loss, val_loss, val_acc = utils.convert_for_print(
                     loss, val_loss, val_acc
                 )
@@ -189,7 +231,10 @@ class ModelTrainer:
                         val_acc,
                     )
                 )
-
+        if self.args.lr_reducer:
+            val_loss, val_acc = self.evaluate("Val", n_batches=None)
+            self.lr_reducer.step(val_loss)
+          
         if self.args.filelogger:
             self.logger["train_loss_per_epoch"].append([epoch, train_loss])
             self.logger["val_loss_per_epoch"].append([epoch, val_loss])
@@ -271,6 +316,8 @@ class ModelTrainer:
             self.train_val(epoch)
             self.evaluate("Test", epoch, verbose=True)
             if self.args.lr_scheduler:
+                self.lr_scheduler.step()
+            if self.args.lr_lambda_scheduler:
                 self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
                 print(
