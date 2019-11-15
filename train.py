@@ -14,6 +14,7 @@ from dataloader import CIFAR10
 from models.softmax import Softmax
 from models.resnet import ResNet18
 from models.alexnet import AlexNet 
+from models.vgg import VGG
 
 
 class ModelTrainer:
@@ -105,11 +106,12 @@ class ModelTrainer:
         # Load the model
         if self.args.model == "softmax":
             self.model = Softmax(self.args.image_size, self.args.no_of_classes)
-
         elif self.args.model == "resnet":
             self.model = ResNet18()
         elif self.args.model == "alexnet":
             self.model = AlexNet(self.args.image_size, self.args.no_of_classes)
+        elif self.args.model == "vggnet":
+            self.model = VGG(self.args.image_size, self.args.no_of_classes)
         else:
             raise Exception("Unknown model {}".format(self.args.model))
 
