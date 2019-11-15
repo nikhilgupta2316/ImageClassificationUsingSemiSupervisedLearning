@@ -61,23 +61,6 @@ class ModelTrainer:
                     milestones=self.args.lr_schedule,
                     gamma=self.args.lr_decay_factor,
                 )
-            if self.args.lr_lambda_scheduler:
-              def lr_multiplier(epoch):
-                if epoch > 180:
-                    return 0.5e-9
-                elif epoch > 160:
-                    return 1e-6
-                elif epoch > 120:
-                    return 1e-3
-                elif epoch > 80:
-                    return 1e-1
-                else:
-                  return 1
-
-              lrMultiplier = lambda epoch: lr_multiplier(epoch)
-
-              self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lr_lambda=[lrMultiplier])
-
             if self.args.lr_reducer:
                 self.lr_reducer = torch.optim.lr_scheduler.ReduceLROnPlateau(self.opt, factor=np.sqrt(0.1),
                                                                         cooldown=0,

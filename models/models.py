@@ -2,6 +2,10 @@ from models.softmax import Softmax
 from models.resnet import ResNet18
 from models.alexnet import AlexNet
 from models.vggnet import VGGNet
+from models.onelayernn import OneLayer
+from models.twolayernn import TwoLayer
+from models.onelayercnn import OneLayerCNN
+from models.twolayercnn import TwoLayerCNN
 
 
 def Model(args):
@@ -16,6 +20,14 @@ def Model(args):
         model = AlexNet(args.image_size, args.no_of_classes)
     elif args.model == "vggnet":
         model = VGGNet(args.image_size, args.no_of_classes)
+    elif args.model == "onelayernn":
+        model = OneLayer(args.image_size, args.no_of_classes)    
+    elif args.model == "twolayernn":
+        model = TwoLayer(args.image_size, args.no_of_classes)
+    elif args.model == "onelayercnn":
+        model = OneLayerCNN(args.image_size, args.no_of_classes)
+    elif args.model == "twolayercnn":
+        model = TwoLayerCNN(args.image_size, args.no_of_classes)
     else:
         raise Exception("Unknown model {}".format(args.model))
 

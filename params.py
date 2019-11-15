@@ -16,7 +16,7 @@ parser.add_argument(
 # Model
 parser.add_argument(
     "--model",
-    choices=["softmax", "convnet", "twolayernn", "densenet", "vggnet", "resnet", "alexnet"],
+    choices=["softmax", "convnet", "twolayernn", "densenet", "vggnet", "resnet", "alexnet", "onelayernn", "onelayercnn", "twolayercnn"],
     help="which model to train/evaluate",
 )
 parser.add_argument(
@@ -66,12 +66,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--lr-scheduler",
-    action="store_true",
-    default=False,
-    help="Use Learning Rate Scheduler to decay LR",
-)
-parser.add_argument(
-    "--lr-lambda-scheduler",
     action="store_true",
     default=False,
     help="Use Learning Rate Scheduler to decay LR",
