@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
+from torchvision import transforms, models
 import PIL
 import params
 import utils
@@ -13,8 +13,6 @@ from dataloader import CIFAR10
 
 from models.softmax import Softmax
 from models.resnet import ResNet18
-from models.alexnet import AlexNet 
-from models.vgg import VGG
 
 
 class ModelTrainer:
@@ -30,17 +28,12 @@ class ModelTrainer:
                 )
             self.loader = torch.load(self.args.eval_checkpoint)
 
-        # Data Augmentation
-
         if self.args.model == "resnet":
           transformations_img_train = [
-              transforms.RandomHorizontalFlip(),
-              transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
               transforms.ToTensor(),
           ]
           
           transformations_img_test = [
-              # transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
               transforms.ToTensor(),
           ]
         else:
@@ -57,19 +50,22 @@ class ModelTrainer:
                   self.args.cifar10_mean_color, self.args.cifar10_std_color
               ),
           ]
-       
-        if (self.args.model == "alexnet"):
-            transformations_img_train = [transforms.Resize((224,224))] + transformations_img_train
-            transformations_img_test = [transforms.Resize((224,224))] + transformations_img_test
 
+        # Data Augmentation
         if self.args.data_aug:
+          if self.args.model == "resnet":
+            data_aug_transform = [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
+            ]
+          else:    
             data_aug_transform = [
                 transforms.RandomCrop(
                     self.args.random_crop_size, padding=self.args.random_crop_pad
                 ),
                 transforms.RandomHorizontalFlip(),
             ]
-            transformations_img_train = data_aug_transform + transformations_img_train
+          transformations_img_train = data_aug_transform + transformations_img_train
         transform_train = transforms.Compose(transformations_img_train)
         transform_test = transforms.Compose(transformations_img_test)
 
@@ -108,10 +104,7 @@ class ModelTrainer:
             self.model = Softmax(self.args.image_size, self.args.no_of_classes)
         elif self.args.model == "resnet":
             self.model = ResNet18()
-        elif self.args.model == "alexnet":
-            self.model = AlexNet(self.args.image_size, self.args.no_of_classes)
-        elif self.args.model == "vggnet":
-            self.model = VGG(self.args.image_size, self.args.no_of_classes)
+            # self.model = models.resnet18(pretrained=True)
         else:
             raise Exception("Unknown model {}".format(self.args.model))
 

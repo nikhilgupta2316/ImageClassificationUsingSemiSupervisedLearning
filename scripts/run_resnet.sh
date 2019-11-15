@@ -3,6 +3,7 @@
 source activate img-classifcation
 
 flags="--model resnet \
+	   --data-aug \
        --optimiser adam \
        --learning-rate 0.001 \
        --lr-reducer \
