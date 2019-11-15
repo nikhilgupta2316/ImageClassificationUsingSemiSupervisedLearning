@@ -7,7 +7,6 @@ flags="--model twolayernn \
        --optimiser adam \
        --learning-rate 0.001 \
        --lr-reducer \
-       --lr-lambda-scheduler \
        --epochs 80 \
        --batch-size 64 \
        --train-data-size 49000\
