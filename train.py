@@ -117,7 +117,7 @@ class ModelTrainer:
 
             self.iter += 1
 
-            images, targets, _ = batch
+            images, targets, indices = batch
             if self.args.cuda:
                 images, targets = images.cuda(), targets.cuda()
 
@@ -236,6 +236,61 @@ class ModelTrainer:
 
         return loss, acc
 
+    def generate_labels_for_ssl(self, n_batches=None, verbose=False):
+
+        self.model.eval()
+        with torch.no_grad():
+            loss = 0
+            correct = 0
+            n_examples = 0
+
+            predictions_indices = []
+            predictions_labels = []
+
+            loader = self.dataloader.unsupervised_train_loader
+
+            for batch_idx, batch in enumerate(loader):
+                images, targets, indices = batch
+                if args.cuda:
+                    images, targets = images.cuda(), targets.cuda()
+
+                logits, unnormalised_scores = self.model(images)
+                loss += F.cross_entropy(unnormalised_scores, targets, reduction="sum")
+                pred = logits.max(1, keepdim=False)[1]
+                correct += pred.eq(targets).sum()
+                n_examples += pred.shape[0]
+
+                predictions_indices.extend(indices.tolist())
+                predictions_labels.extend(pred.tolist())
+
+                if n_batches and (batch_idx >= n_batches):
+                    break
+
+            loss /= n_examples
+            acc = 100.0 * correct / n_examples
+
+            if verbose:
+                loss, acc = utils.convert_for_print(loss, acc)
+                print(
+                    "\nSSL Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)"
+                    % (loss, correct, n_examples, acc)
+                )
+
+                # TODO: Add logging
+                # if self.args.filelogger:
+                #     self.logger["test_loss"].append([epoch, loss])
+                #     self.logger["test_accuracy"].append([epoch, acc])
+                # if self.args.tensorboard:
+                #     self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
+                #     self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
+                #     self.writer.add_scalar(
+                #         "Accuracy_at_Epoch/Best_Test_Accuracy",
+                #         self.best_test_accuracy,
+                #         self.best_test_epoch,
+                #     )
+
+        return predictions_indices, predictions_labels
+
     def train_val_test(self):
         """ Function to train, validate and evaluate the model"""
         self.iter = 0
@@ -264,12 +319,53 @@ class ModelTrainer:
         if self.args.filelogger:
             utils.write_log_to_json(self.logger_path, self.logger)
 
+    def ssl_train_val_test(self):
+        """ Function to train, validate and evaluate the model"""
+        self.iter = 0
+        predictions_indices, predictions_labels = [], []
+        self.dataloader.stop_label_generation = False
+
+        for epoch in range(1, self.args.epochs + 1):
+            if not self.dataloader.stop_label_generation:
+                self.dataloader.ssl_init_epoch(predictions_indices, predictions_labels)
+
+            self.train_val(epoch)
+            self.evaluate("Test", epoch, verbose=True)
+
+            if not self.dataloader.stop_label_generation:
+                predictions_indices, predictions_labels = self.generate_labels_for_ssl(n_batches=4, verbose=True)
+
+            if self.args.lr_scheduler:
+                self.lr_scheduler.step()
+            if self.args.lr_lambda_scheduler:
+                self.lr_scheduler.step()
+            if epoch % self.args.checkpoint_save_interval == 0:
+                print(
+                    "Saved %s/%s_epoch%d.pt\n"
+                    % (self.args.logdir, self.args.exp_name, epoch)
+                )
+                torch.save(
+                    self.model.state_dict(),
+                    "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch),
+                )
+
+        if self.args.tensorboard:
+            if self.args.filelogger:
+                text = "Epoch: %d Test Accuracy:%0.1f" % (self.logger["best_epoch"], self.logger["best_test_accuracy"])
+                self.writer.add_text("Best Test Performance", text)
+            self.writer.close()
+        if self.args.filelogger:
+            utils.write_log_to_json(self.logger_path, self.logger)
+
 
 if __name__ == "__main__":
     args = params.parse_args()
     utils.set_random_seed(args.seed, args.cuda)
     trainer = ModelTrainer(args=args)
     if args.eval is False:
-        trainer.train_val_test()
+        if args.training_mode=="supervised":
+            trainer.train_val_test()
+        elif args.training_mode=="semi-supervised":
+            trainer.ssl_train_val_test()
     if args.eval is True:
         trainer.evaluate("Test", verbose=True)

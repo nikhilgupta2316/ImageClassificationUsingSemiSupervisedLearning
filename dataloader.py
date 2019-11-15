@@ -162,3 +162,42 @@ class DataLoader:
         self.test_loader = torch.utils.data.DataLoader(
             self.test_dataset, batch_size=self.args.test_batch_size, shuffle=True
         )
+
+    def ssl_init_epoch(self, predictions_indices=[], predictions_labels=[]):
+
+        self.train_labeled_indices.extend(predictions_indices)
+        self.supervised_train_dataset = CIFAR10(
+            self.args.cifar10_dir,
+            split="train",
+            train_split_supervised_indices=np.array(self.train_labeled_indices),
+            download=True,
+            transform=self.transform_train,
+        )
+        if len(predictions_indices)!=0:
+            indices2array_indices = {idx:i for i, idx in enumerate(self.supervised_train_dataset.train_indices)}
+            array_indices = np.array([indices2array_indices[index] for index in predictions_indices])
+            self.supervised_train_dataset.train_labels[array_indices] = predictions_labels
+
+            self.train_unlabeled_indices = [idx for idx in self.train_unlabeled_indices if idx not in predictions_indices]
+
+        assert len(self.train_labeled_indices) + len(self.train_unlabeled_indices) == len(self.full_supervised_train_dataset.train_labels)
+
+        self.supervised_train_loader = torch.utils.data.DataLoader(
+            self.supervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
+        )
+
+        if len(self.train_unlabeled_indices) != 0:
+            self.unsupervised_train_dataset = CIFAR10(
+                self.args.cifar10_dir,
+                split="train",
+                train_split_supervised_indices=np.array(self.train_unlabeled_indices),
+                download=True,
+                transform=self.transform_train,
+            )
+            self.unsupervised_train_loader = torch.utils.data.DataLoader(
+                self.unsupervised_train_dataset, batch_size=self.args.ssl_label_generation_batch_size, shuffle=True
+            )
+        else:
+            self.stop_label_generation = True
+
+        self.train_loader = self.supervised_train_loader

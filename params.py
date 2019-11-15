@@ -45,6 +45,9 @@ parser.add_argument(
 parser.add_argument(
     "--batch-size", type=int, default=64, help="Batch size for training"
 )
+parser.add_argument(
+    "--ssl-label-generation-batch-size", type=int, default=64, help="Batch size for training"
+)
 parser.add_argument("--epochs", type=int, default=20, help="Number of epochs to train")
 parser.add_argument(
     "--optimiser",
