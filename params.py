@@ -16,7 +16,7 @@ parser.add_argument(
 # Model
 parser.add_argument(
     "--model",
-    choices=["softmax", "convnet", "twolayernn", "densenet", "vggnet", "resnet", "alexnet"],
+    choices=["softmax", "convnet", "twolayernn", "densenet", "vggnet", "resnet", "alexnet", "onelayernn"],
     help="which model to train/evaluate",
 )
 parser.add_argument(
