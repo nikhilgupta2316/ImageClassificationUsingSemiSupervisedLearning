@@ -204,7 +204,7 @@ class ModelTrainer:
 
             self.iter += 1
 
-            images, targets = batch
+            images, targets, _ = batch
             if self.args.cuda:
                 images, targets = images.cuda(), targets.cuda()
 
@@ -276,7 +276,7 @@ class ModelTrainer:
                 loader = self.test_loader
 
             for batch_idx, batch in enumerate(loader):
-                images, targets = batch
+                images, targets, _ = batch
                 if args.cuda:
                     images, targets = images.cuda(), targets.cuda()
 

@@ -18,6 +18,33 @@ import torch.utils.data as data
 from torchvision.datasets.utils import download_url, check_integrity
 
 
+def divide_train_supervised_unsupervised(labels, n_labeled_per_class):
+    labels = np.array(labels)
+    train_labeled_idxs = []
+    train_unlabeled_idxs = []
+
+    for i in range(10):
+        idxs = np.where(labels == i)[0]
+        np.random.shuffle(idxs)
+        train_labeled_idxs.extend(idxs[:n_labeled_per_class])
+        train_unlabeled_idxs.extend(idxs[n_labeled_per_class:])
+    np.random.shuffle(train_labeled_idxs)
+    np.random.shuffle(train_unlabeled_idxs)
+
+    return train_labeled_idxs, train_unlabeled_idxs
+
+
+def get_train_indices_for_ssl(CIFAR10_dataset, n_labeled):
+    train_labeled_idxs, train_unlabeled_idxs = divide_train_supervised_unsupervised(
+        CIFAR10_dataset.train_labels, int(n_labeled / 10)
+    )
+    print("Total Training Data: %d" % len(CIFAR10_dataset.train_labels))
+    print("split into")
+    print("Labeled Training Data: %d" % len(train_labeled_idxs))
+    print("Unlabeled Training Data: %d" % len(train_unlabeled_idxs))
+    return train_labeled_idxs, train_unlabeled_idxs
+
+
 class CIFAR10(data.Dataset):
     """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
     Args:
@@ -55,6 +82,7 @@ class CIFAR10(data.Dataset):
         self,
         root,
         split="train",
+        train_split_supervised_indices=None,
         transform=None,
         target_transform=None,
         download=False,
@@ -100,6 +128,14 @@ class CIFAR10(data.Dataset):
             self.val_labels = self.train_labels[-val_samples:]
             self.train_data = self.train_data[:-val_samples]
             self.train_labels = self.train_labels[:-val_samples]
+            self.train_labels = np.array(self.train_labels)
+            self.val_labels = np.array(self.val_labels)
+            self.train_indices = np.arange(len(self.train_labels))
+            self.val_indices = np.arange(len(self.val_labels))
+            if train_split_supervised_indices is not None:
+                self.train_data = self.train_data[train_split_supervised_indices]
+                self.train_labels = self.train_labels[train_split_supervised_indices]
+                self.train_indices = self.train_indices[train_split_supervised_indices]
         elif self.split == "test":
             f = self.test_list[0][0]
             file = os.path.join(self.root, self.base_folder, f)
@@ -116,6 +152,7 @@ class CIFAR10(data.Dataset):
             fo.close()
             self.test_data = self.test_data.reshape((10000, 3, 32, 32))
             self.test_data = self.test_data.transpose((0, 2, 3, 1))  # convert to HWC
+            self.test_indices = np.arange(len(self.test_labels))
         else:
             raise Exception("Unkown split {}".format(self.split))
 
@@ -127,11 +164,23 @@ class CIFAR10(data.Dataset):
             tuple: (image, target) where target is index of the target class.
         """
         if self.split == "train":
-            img, target = self.train_data[index], self.train_labels[index]
+            img, target, idx = (
+                self.train_data[index],
+                self.train_labels[index],
+                self.train_indices[index],
+            )
         elif self.split == "val":
-            img, target = self.val_data[index], self.val_labels[index]
+            img, target, idx = (
+                self.val_data[index],
+                self.val_labels[index],
+                self.val_indices[index],
+            )
         elif self.split == "test":
-            img, target = self.test_data[index], self.test_labels[index]
+            img, target, idx = (
+                self.test_data[index],
+                self.test_labels[index],
+                self.test_indices[index],
+            )
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
@@ -143,7 +192,7 @@ class CIFAR10(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return img, target
+        return img, target, idx
 
     def __len__(self):
         if self.split == "train":
