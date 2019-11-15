@@ -13,6 +13,9 @@ from dataloader import CIFAR10
 
 from models.softmax import Softmax
 from models.resnet import ResNet18
+from models.alexnet import AlexNet
+from models.vgg import VGG
+
 
 
 class ModelTrainer:
@@ -50,6 +53,10 @@ class ModelTrainer:
                   self.args.cifar10_mean_color, self.args.cifar10_std_color
               ),
           ]
+
+        if (self.args.model == "alexnet"):
+            transformations_img_train = [transforms.Resize((224, 224))] + transformations_img_train
+            transformations_img_test = [transforms.Resize((224, 224))] + transformations_img_test
 
         # Data Augmentation
         if self.args.data_aug:
@@ -105,6 +112,10 @@ class ModelTrainer:
         elif self.args.model == "resnet":
             self.model = ResNet18()
             # self.model = models.resnet18(pretrained=True)
+        elif self.args.model == "alexnet":
+            self.model = AlexNet(self.args.image_size, self.args.no_of_classes)
+        elif self.args.model == "vggnet":
+            self.model = VGG(self.args.image_size, self.args.no_of_classes)
         else:
             raise Exception("Unknown model {}".format(self.args.model))
 
