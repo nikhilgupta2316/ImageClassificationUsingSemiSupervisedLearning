@@ -2,7 +2,7 @@
 
 source activate img-classifcation
 
-flags="--model vgg \
+flags="--model vggnet \
        --optimiser sgd \
        --learning-rate 0.01 \
        --momentum 0.9 \
