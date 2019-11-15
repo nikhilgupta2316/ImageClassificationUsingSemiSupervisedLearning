@@ -83,32 +83,82 @@ class DataLoader:
         transform_train = transforms.Compose(transform_img_train)
         transform_test = transforms.Compose(transform_img_test)
 
-        # Datasets
+        # Datasets and DataLoaders
         if self.args.eval is False:
-            self.train_dataset = CIFAR10(
-                self.args.cifar10_dir,
-                split="train",
-                download=True,
-                transform=transform_train,
-            )
+            if self.args.training_mode=="supervised":
+                # ########################## Fully Supervised ################################### #
+                self.full_supervised_train_dataset = CIFAR10(
+                    self.args.cifar10_dir,
+                    split="train",
+                    download=True,
+                    transform=transform_train,
+                )
+                if self.args.full_data:
+                    self.train_dataset = self.full_supervised_train_dataset
+                else:
+                # ######################## Partially Supervised ################################# #
+                    train_labeled_idxs, train_unlabeled_idxs = get_train_indices_for_ssl(self.full_supervised_train_dataset, self.args.train_data_size)
+                    self.train_labeled_indices = train_labeled_idxs
+
+                    self.supervised_train_dataset = CIFAR10(
+                        self.args.cifar10_dir,
+                        split="train",
+                        train_split_supervised_indices=np.array(self.train_labeled_indices),
+                        download=True,
+                        transform=transform_train,
+                    )
+                    self.train_dataset = self.supervised_train_dataset
+
+                self.train_loader = torch.utils.data.DataLoader(
+                    self.train_dataset, batch_size=self.args.batch_size, shuffle=True
+                )
+
+            elif self.args.training_mode=="semi-supervised":
+                # ########################### Semi Supervised ################################### #
+                self.full_supervised_train_dataset = CIFAR10(
+                    self.args.cifar10_dir,
+                    split="train",
+                    download=True,
+                    transform=transform_train,
+                )
+                train_labeled_idxs, train_unlabeled_idxs = get_train_indices_for_ssl(self.full_supervised_train_dataset, self.args.train_data_size)
+                self.train_labeled_indices = train_labeled_idxs
+                self.train_unlabeled_indices = train_unlabeled_idxs
+
+                self.supervised_train_dataset = CIFAR10(
+                    self.args.cifar10_dir,
+                    split="train",
+                    train_split_supervised_indices=np.array(self.train_labeled_indices),
+                    download=True,
+                    transform=transform_train,
+                )
+                self.unsupervised_train_dataset = CIFAR10(
+                    self.args.cifar10_dir,
+                    split="train",
+                    train_split_supervised_indices=np.array(self.train_unlabeled_indices),
+                    download=True,
+                    transform=transform_train,
+                )
+                self.supervised_train_loader = torch.utils.data.DataLoader(
+                    self.supervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
+                )
+                self.unsupervised_train_loader = torch.utils.data.DataLoader(
+                    self.unsupervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
+                )
+            # ############################## Val Split ########################################## #
             self.val_dataset = CIFAR10(
                 self.args.cifar10_dir,
                 split="val",
                 download=True,
                 transform=transform_test,
             )
-        self.test_dataset = CIFAR10(
-            self.args.cifar10_dir, split="test", download=True, transform=transform_test
-        )
-
-        # Data Loaders
-        if self.args.eval is False:
-            self.train_loader = torch.utils.data.DataLoader(
-                self.train_dataset, batch_size=self.args.batch_size, shuffle=True
-            )
             self.val_loader = torch.utils.data.DataLoader(
                 self.val_dataset, batch_size=self.args.test_batch_size, shuffle=True
             )
+        # ################################ Test Split ########################################### #
+        self.test_dataset = CIFAR10(
+            self.args.cifar10_dir, split="test", download=True, transform=transform_test
+        )
         self.test_loader = torch.utils.data.DataLoader(
             self.test_dataset, batch_size=self.args.test_batch_size, shuffle=True
         )

@@ -28,6 +28,21 @@ parser.add_argument(
 
 # Training
 parser.add_argument(
+    "--training-mode",
+    choices=["supervised", "semi-supervised"],
+    default="supervised",
+    help="Which training method to use",
+)
+parser.add_argument(
+    "--not-full-data",
+    action="store_true",
+    default=False,
+    help="Which training method to use",
+)
+parser.add_argument(
+    "--train-data-size", type=int, default=4000, help="Amount of data to train on in supervised fashion"
+)
+parser.add_argument(
     "--batch-size", type=int, default=64, help="Batch size for training"
 )
 parser.add_argument("--epochs", type=int, default=20, help="Number of epochs to train")
@@ -166,5 +181,7 @@ def parse_args():
     args.cifar10_std_color = [0.2023, 0.1994, 0.2010]
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
+
+    args.full_data = not args.not_full_data
 
     return args

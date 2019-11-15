@@ -129,8 +129,6 @@ class ModelTrainer:
             if batch_idx % self.args.log_interval == 0:
                 val_loss, val_acc = self.evaluate("Val", n_batches=4)
 
-
-
                 train_loss, val_loss, val_acc = utils.convert_for_print(
                     loss, val_loss, val_acc
                 )
@@ -257,7 +255,12 @@ class ModelTrainer:
                     self.model.state_dict(),
                     "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch),
                 )
-        self.writer.close()
+
+        if self.args.tensorboard:
+            if self.args.filelogger:
+                text = "Epoch: %d Test Accuracy:%0.1f" % (self.logger["best_epoch"], self.logger["best_test_accuracy"])
+                self.writer.add_text("Best Test Performance", text)
+            self.writer.close()
         if self.args.filelogger:
             utils.write_log_to_json(self.logger_path, self.logger)
 
