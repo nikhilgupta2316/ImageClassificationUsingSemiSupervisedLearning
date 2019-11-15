@@ -10,7 +10,7 @@ flags="--model twolayernn \
        --epochs 80 \
        --batch-size 64 \
        --train-data-size 49000\
-       --exp-name resnet \
+       --exp-name twolayernn \
        --tensorboard \
        --filelogger "
 
