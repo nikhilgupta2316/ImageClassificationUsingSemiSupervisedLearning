@@ -7,7 +7,7 @@ flags="--model softmax \
        --learning-rate 0.01 \
        --momentum 0.0 \
        --weight-decay 0.0 \
-       --epochs 5 \
+       --epochs 10 \
        --batch-size 512 \
        --exp-name softmax \
        --tensorboard \

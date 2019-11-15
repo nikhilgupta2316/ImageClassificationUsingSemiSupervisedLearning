@@ -8,7 +8,7 @@ import torch.nn as nn
 # features.extend([nn.Linear(num_ftrs, 10)])
 # net.classifier = nn.Sequential(*features)
 
-class VGG(nn.Module):
+class VGGNet(nn.Module):
     def __init__(self, im_size, n_classes):
         """ Softmax Classifier
 
@@ -16,7 +16,7 @@ class VGG(nn.Module):
             im_size (tuple): A tuple of ints with (channels, height, width)
             n_classes (int): Number of classes to score
         """
-        super(VGG, self).__init__()
+        super(VGGNet, self).__init__()
         self.vggnet = models.vgg19(pretrained=False,num_classes=n_classes)
         self.softmax = nn.Softmax(dim=1)
 		# num_ftrs = net.classifier[6].in_features

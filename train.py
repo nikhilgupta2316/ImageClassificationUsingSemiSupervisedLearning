@@ -6,16 +6,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms, models
-import PIL
+
 import params
 import utils
-from dataloader import CIFAR10
 
-from models.softmax import Softmax
-from models.resnet import ResNet18
-from models.alexnet import AlexNet
-from models.vgg import VGG
-
+from dataloader import DataLoader
+from models.models import Model
 
 
 class ModelTrainer:
@@ -31,93 +27,10 @@ class ModelTrainer:
                 )
             self.loader = torch.load(self.args.eval_checkpoint)
 
-        if self.args.model == "resnet":
-          transformations_img_train = [
-              transforms.ToTensor(),
-          ]
-          
-          transformations_img_test = [
-              transforms.ToTensor(),
-          ]
-        else:
-          transformations_img_train = [
-              transforms.ToTensor(),
-              transforms.Normalize(
-                  self.args.cifar10_mean_color, self.args.cifar10_std_color
-              ),
-          ]
-          
-          transformations_img_test = [
-              transforms.ToTensor(),
-              transforms.Normalize(
-                  self.args.cifar10_mean_color, self.args.cifar10_std_color
-              ),
-          ]
-
-        if (self.args.model == "alexnet"):
-            transformations_img_train = [transforms.Resize((224, 224))] + transformations_img_train
-            transformations_img_test = [transforms.Resize((224, 224))] + transformations_img_test
-
-        # Data Augmentation
-        if self.args.data_aug:
-          if self.args.model == "resnet":
-            data_aug_transform = [
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
-            ]
-          else:    
-            data_aug_transform = [
-                transforms.RandomCrop(
-                    self.args.random_crop_size, padding=self.args.random_crop_pad
-                ),
-                transforms.RandomHorizontalFlip(),
-            ]
-          transformations_img_train = data_aug_transform + transformations_img_train
-        transform_train = transforms.Compose(transformations_img_train)
-        transform_test = transforms.Compose(transformations_img_test)
-
-        # Datasets
-        if self.args.eval is False:
-            self.train_dataset = CIFAR10(
-                self.args.cifar10_dir,
-                split="train",
-                download=True,
-                transform=transform_train,
-            )
-            self.val_dataset = CIFAR10(
-                self.args.cifar10_dir,
-                split="val",
-                download=True,
-                transform=transform_test,
-            )
-        self.test_dataset = CIFAR10(
-            self.args.cifar10_dir, split="test", download=True, transform=transform_test
-        )
-
-        # Data Loaders
-        if self.args.eval is False:
-            self.train_loader = torch.utils.data.DataLoader(
-                self.train_dataset, batch_size=self.args.batch_size, shuffle=True
-            )
-            self.val_loader = torch.utils.data.DataLoader(
-                self.val_dataset, batch_size=self.args.test_batch_size, shuffle=True
-            )
-        self.test_loader = torch.utils.data.DataLoader(
-            self.test_dataset, batch_size=self.args.test_batch_size, shuffle=True
-        )
+        self.dataloader = DataLoader(self.args)
 
         # Load the model
-        if self.args.model == "softmax":
-            self.model = Softmax(self.args.image_size, self.args.no_of_classes)
-        elif self.args.model == "resnet":
-            self.model = ResNet18()
-            # self.model = models.resnet18(pretrained=True)
-        elif self.args.model == "alexnet":
-            self.model = AlexNet(self.args.image_size, self.args.no_of_classes)
-        elif self.args.model == "vggnet":
-            self.model = VGG(self.args.image_size, self.args.no_of_classes)
-        else:
-            raise Exception("Unknown model {}".format(self.args.model))
+        self.model = Model(self.args)
 
         if self.args.eval:
             self.model.load_state_dict(self.loader)
@@ -160,7 +73,7 @@ class ModelTrainer:
                     return 1e-1
                 else:
                   return 1
-               
+
               lrMultiplier = lambda epoch: lr_multiplier(epoch)
 
               self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lr_lambda=[lrMultiplier])
@@ -198,7 +111,7 @@ class ModelTrainer:
     def train_val(self, epoch):
         """Train the model for one epoch and evaluate on val split if log_intervals have passed"""
 
-        for batch_idx, batch in enumerate(self.train_loader):
+        for batch_idx, batch in enumerate(self.dataloader.train_loader):
             self.model.train()
             self.opt.zero_grad()
 
@@ -216,7 +129,7 @@ class ModelTrainer:
             if batch_idx % self.args.log_interval == 0:
                 val_loss, val_acc = self.evaluate("Val", n_batches=4)
 
-                
+
 
                 train_loss, val_loss, val_acc = utils.convert_for_print(
                     loss, val_loss, val_acc
@@ -233,24 +146,25 @@ class ModelTrainer:
                     self.writer.add_scalar("Accuracy_at_Iter/Val", val_acc, self.iter)
 
                 examples_this_epoch = batch_idx * len(images)
-                epoch_progress = 100.0 * batch_idx / len(self.train_loader)
+                epoch_progress = 100.0 * batch_idx / len(self.dataloader.train_loader)
                 print(
                     "Train Epoch: %3d [%5d/%5d (%5.1f%%)]\t "
                     "Train Loss: %0.6f\t Val Loss: %0.6f\t Val Acc: %0.1f"
                     % (
                         epoch,
                         examples_this_epoch,
-                        len(self.train_loader.dataset),
+                        len(self.dataloader.train_loader.dataset),
                         epoch_progress,
                         train_loss,
                         val_loss,
                         val_acc,
                     )
                 )
+        # TODO: why is this done?
         if self.args.lr_reducer:
             val_loss, val_acc = self.evaluate("Val", n_batches=None)
             self.lr_reducer.step(val_loss)
-          
+
         if self.args.filelogger:
             self.logger["train_loss_per_epoch"].append([epoch, train_loss])
             self.logger["val_loss_per_epoch"].append([epoch, val_loss])
@@ -271,9 +185,9 @@ class ModelTrainer:
             n_examples = 0
 
             if split == "Val":
-                loader = self.val_loader
+                loader = self.dataloader.val_loader
             elif split == "Test":
-                loader = self.test_loader
+                loader = self.dataloader.test_loader
 
             for batch_idx, batch in enumerate(loader):
                 images, targets, _ = batch

@@ -19,6 +19,13 @@ parser.add_argument(
     choices=["softmax", "convnet", "twolayernn", "densenet", "vggnet", "resnet", "alexnet"],
     help="which model to train/evaluate",
 )
+parser.add_argument(
+    "--pretrained",
+    action="store_true",
+    default=False,
+    help="Use pretrained model from torchvision.models",
+)
+
 # Training
 parser.add_argument(
     "--batch-size", type=int, default=64, help="Batch size for training"
@@ -148,9 +155,14 @@ def parse_args():
     args.no_of_classes = 10
     args.image_size = (3, 32, 32)
 
-    # Mean Color of training images
+    # ImageNet Mean Color
+    args.imagenet_mean_color = [0.485, 0.456, 0.406]
+    # ImageNet Std Dev Color
+    args.imagenet_std_color = [0.229, 0.224, 0.225]
+
+    # CIFAR10 Mean Color
     args.cifar10_mean_color = [0.4914, 0.4822, 0.4465]
-    # Std Dev of Color of training images
+    # CIFAR10 Std Dev Color
     args.cifar10_std_color = [0.2023, 0.1994, 0.2010]
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
