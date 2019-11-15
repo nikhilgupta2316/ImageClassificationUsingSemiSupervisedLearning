@@ -51,7 +51,7 @@ class ModelTrainer:
                     weight_decay=self.args.weight_decay,
                 )
             elif self.args.optimiser == "adam":
-                self.opt = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+                self.opt = optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=self.args.weight_decay)
             else:
                 raise Exception("Unknown optimiser {}".format(self.args.optim))
 
@@ -160,7 +160,6 @@ class ModelTrainer:
                         val_acc,
                     )
                 )
-        # TODO: why is this done?
         if self.args.lr_reducer:
             val_loss, val_acc = self.evaluate("Val", n_batches=None)
             self.lr_reducer.step(val_loss)
