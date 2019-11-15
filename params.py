@@ -68,12 +68,6 @@ parser.add_argument(
     help="Use Learning Rate Scheduler to decay LR",
 )
 parser.add_argument(
-    "--lr-lambda-scheduler",
-    action="store_true",
-    default=False,
-    help="Use Learning Rate Scheduler to decay LR",
-)
-parser.add_argument(
     "--lr-reducer",
     action="store_true",
     default=False,
