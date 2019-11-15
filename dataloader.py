@@ -77,8 +77,8 @@ class DataLoader:
                 ]
 
         # Combine all transformations
-        transform_img_train = transform_img + normalise + resize + data_augmentation
-        transform_img_test = transform_img + normalise + resize
+        transform_img_train = data_augmentation + resize + transform_img + normalise
+        transform_img_test = resize + transform_img + normalise
 
         transform_train = transforms.Compose(transform_img_train)
         transform_test = transforms.Compose(transform_img_test)
