@@ -143,7 +143,7 @@ class DataLoader:
                     self.supervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
                 )
                 self.unsupervised_train_loader = torch.utils.data.DataLoader(
-                    self.unsupervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
+                    self.unsupervised_train_dataset, batch_size=self.args.ssl_label_generation_batch_size, shuffle=True
                 )
             # ############################## Val Split ########################################## #
             self.val_dataset = CIFAR10(
@@ -201,3 +201,6 @@ class DataLoader:
             self.stop_label_generation = True
 
         self.train_loader = self.supervised_train_loader
+
+        print("Labeled Training data: %d/%d" % (len(self.supervised_train_dataset.train_labels), len(self.full_supervised_train_dataset.train_labels)))
+        print("Unlabeled Training data: %d/%d" % (len(self.supervised_train_dataset.train_labels), len(self.full_supervised_train_dataset.train_labels)))

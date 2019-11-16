@@ -17,6 +17,7 @@ class ModelTrainer:
     """Class for training and testing of model"""
 
     def __init__(self, args):
+        self.epoch_timer = utils.TimeIt(print_str="Epoch")
         self.args = args
 
         if self.args.eval:
@@ -144,6 +145,8 @@ class ModelTrainer:
             val_loss, val_acc = self.evaluate("Val", n_batches=None)
             self.lr_reducer.step(val_loss)
 
+        val_loss, val_acc = utils.convert_for_print(val_loss, val_acc)
+
         if self.args.filelogger:
             self.logger["train_loss_per_epoch"].append([epoch, train_loss])
             self.logger["val_loss_per_epoch"].append([epoch, val_loss])
@@ -254,7 +257,7 @@ class ModelTrainer:
             if verbose:
                 loss, acc = utils.convert_for_print(loss, acc)
                 print(
-                    "\nSSL Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)"
+                    "\nLabel Generation Performance Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)"
                     % (loss, correct, n_examples, acc)
                 )
 
@@ -281,8 +284,6 @@ class ModelTrainer:
             self.evaluate("Test", epoch, verbose=True)
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
-            if self.args.lr_lambda_scheduler:
-                self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
                 print(
                     "Saved %s/%s_epoch%d.pt\n"
@@ -292,6 +293,7 @@ class ModelTrainer:
                     self.model.state_dict(),
                     "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch),
                 )
+            self.epoch_timer.tic(verbose=True)
 
         if self.args.tensorboard:
             if self.args.filelogger:
@@ -300,6 +302,7 @@ class ModelTrainer:
             self.writer.close()
         if self.args.filelogger:
             utils.write_log_to_json(self.logger_path, self.logger)
+        self.epoch_timer.time_since_init(print_str="Total")
 
     def ssl_train_val_test(self):
         """ Function to train, validate and evaluate the model"""
@@ -319,8 +322,6 @@ class ModelTrainer:
 
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
-            if self.args.lr_lambda_scheduler:
-                self.lr_scheduler.step()
             if epoch % self.args.checkpoint_save_interval == 0:
                 print(
                     "Saved %s/%s_epoch%d.pt\n"
@@ -330,6 +331,7 @@ class ModelTrainer:
                     self.model.state_dict(),
                     "%s/%s_epoch%d.pt" % (self.args.logdir, self.args.exp_name, epoch),
                 )
+            self.epoch_timer.tic(verbose=True)
 
         if self.args.tensorboard:
             if self.args.filelogger:
@@ -338,6 +340,7 @@ class ModelTrainer:
             self.writer.close()
         if self.args.filelogger:
             utils.write_log_to_json(self.logger_path, self.logger)
+        self.epoch_timer.time_since_init(print_str="Total")
 
 
 if __name__ == "__main__":
