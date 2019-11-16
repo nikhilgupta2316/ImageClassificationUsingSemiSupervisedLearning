@@ -2,6 +2,8 @@
 
 source activate img-classifcation
 
+EXP_NAME=twolayercnn
+
 flags="--model twolayercnn \
        --data-aug \
        --optimiser adam \
@@ -10,8 +12,8 @@ flags="--model twolayercnn \
        --epochs 80 \
        --batch-size 64 \
        --train-data-size 49000\
-       --exp-name twolayercnn \
+       --exp-name ${EXP_NAME} \
        --tensorboard \
        --filelogger "
 
-unbuffer python train.py $flags | tee checkpoints/twolayercnn.log
+unbuffer python train.py $flags | tee checkpoints/${EXP_NAME}.log

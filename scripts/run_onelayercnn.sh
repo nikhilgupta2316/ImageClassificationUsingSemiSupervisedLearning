@@ -2,6 +2,8 @@
 
 source activate img-classifcation
 
+EXP_NAME=onelayercnn
+
 flags="--model onelayercnn \
        --data-aug \
        --optimiser adam \
@@ -10,8 +12,8 @@ flags="--model onelayercnn \
        --epochs 80 \
        --batch-size 64 \
        --train-data-size 49000\
-       --exp-name onelayercnn \
+       --exp-name ${EXP_NAME} \
        --tensorboard \
        --filelogger "
 
-unbuffer python train.py $flags | tee checkpoints/onelayercnn.log
+unbuffer python train.py $flags | tee checkpoints/${EXP_NAME}.log

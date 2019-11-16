@@ -2,6 +2,8 @@
 
 source activate img-classifcation
 
+EXP_NAME=softmax-4k
+
 flags="--model softmax \
        --training-mode supervised \
        --not-full-data \
@@ -12,9 +14,9 @@ flags="--model softmax \
        --weight-decay 0.0 \
        --epochs 40 \
        --batch-size 512 \
-       --exp-name softmax-4k \
+       --exp-name ${EXP_NAME} \
        --tensorboard \
        --log-interval 2 \
        --filelogger "
 
-unbuffer python train.py $flags | tee checkpoints/softmax-4k.log
+unbuffer python train.py $flags | tee checkpoints/${EXP_NAME}.log
