@@ -85,7 +85,10 @@ class ModelTrainer:
                     "test_loss": [],
                     "test_accuracy": [],
                     "best_epoch": 0,
-                    "best_test_accuracy": 0.0
+                    "best_test_accuracy": 0.0,
+                    "ssl_loss": [],
+                    "ssl_accuracy": [],
+                    "ssl_correct": []
                 }
             if self.args.tensorboard:
                 self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
@@ -221,7 +224,7 @@ class ModelTrainer:
 
         return loss, acc
 
-    def generate_labels_for_ssl(self, n_batches=None, verbose=False):
+    def generate_labels_for_ssl(self, epoch, n_batches=None, verbose=False):
 
         self.model.eval()
         with torch.no_grad():
@@ -262,17 +265,14 @@ class ModelTrainer:
                 )
 
                 # TODO: Add logging
-                # if self.args.filelogger:
-                #     self.logger["test_loss"].append([epoch, loss])
-                #     self.logger["test_accuracy"].append([epoch, acc])
-                # if self.args.tensorboard:
-                #     self.writer.add_scalar("Loss_at_Epoch/Test", loss, epoch)
-                #     self.writer.add_scalar("Accuracy_at_Epoch/Test", acc, epoch)
-                #     self.writer.add_scalar(
-                #         "Accuracy_at_Epoch/Best_Test_Accuracy",
-                #         self.best_test_accuracy,
-                #         self.best_test_epoch,
-                #     )
+                if self.args.filelogger:
+                    self.logger["ssl_loss"].append([epoch, loss])
+                    self.logger["ssl_accuracy"].append([epoch, acc])
+                    self.logger["ssl_correct"].append([epoch, correct])
+                if self.args.tensorboard:
+                    self.writer.add_scalar("SSL_Loss_at_Epoch", loss, epoch)
+                    self.writer.add_scalar("SSL_Accuracy_at_Epoch", acc, epoch)
+                    self.writer.add_scalar("SSL_Correct_Labels_at_Epoch", correct, epoch)
 
         return predictions_indices, predictions_labels
 
@@ -312,7 +312,7 @@ class ModelTrainer:
 
         for epoch in range(1, self.args.epochs + 1):
             if not self.dataloader.stop_label_generation:
-                self.dataloader.ssl_init_epoch(predictions_indices, predictions_labels)
+                self.dataloader.ssl_init_epoch(epoch, predictions_indices, predictions_labels)
 
             self.train_val(epoch)
             self.evaluate("Test", epoch, verbose=True)
