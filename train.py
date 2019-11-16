@@ -312,13 +312,13 @@ class ModelTrainer:
 
         for epoch in range(1, self.args.epochs + 1):
             if not self.dataloader.stop_label_generation:
-                self.dataloader.ssl_init_epoch(epoch, predictions_indices, predictions_labels)
+                self.dataloader.ssl_init_epoch(predictions_indices, predictions_labels)
 
             self.train_val(epoch)
             self.evaluate("Test", epoch, verbose=True)
 
             if not self.dataloader.stop_label_generation:
-                predictions_indices, predictions_labels = self.generate_labels_for_ssl(n_batches=4, verbose=True)
+                predictions_indices, predictions_labels = self.generate_labels_for_ssl(epoch, n_batches=4, verbose=True)
 
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
