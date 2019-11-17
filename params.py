@@ -151,6 +151,15 @@ parser.add_argument(
     "--no-cuda", action="store_true", default=False, help="disables CUDA training"
 )
 
+#Log Filename for visualization
+parser.add_argument(
+    "--filename",
+    default="data",
+    help="directory that contains cifar-10-batches-py/ "
+    "(downloaded automatically if necessary)",
+)
+
+
 
 def print_args(args):
     s = ""
