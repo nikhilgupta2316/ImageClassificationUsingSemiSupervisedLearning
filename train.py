@@ -1,9 +1,13 @@
 import os
 import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from sklearn import mixture
+from scipy.stats import mode
+
 from torch.utils.tensorboard import SummaryWriter
 
 import params
@@ -20,79 +24,93 @@ class ModelTrainer:
         self.epoch_timer = utils.TimeIt(print_str="Epoch")
         self.args = args
 
-        if self.args.eval:
-            if self.args.eval_checkpoint == "":
-                raise ValueError(
-                    "Eval mode is set, but no checkpoint path is provided!"
-                )
-            self.loader = torch.load(self.args.eval_checkpoint)
+        if self.args.training_mode == "gmm":
+            self.dataloader = DataLoader(self.args)
+        else:
+            if self.args.eval:
+                if self.args.eval_checkpoint == "":
+                    raise ValueError(
+                        "Eval mode is set, but no checkpoint path is provided!"
+                    )
+                self.loader = torch.load(self.args.eval_checkpoint)
 
-        self.dataloader = DataLoader(self.args)
+            self.dataloader = DataLoader(self.args)
 
-        # Load the model
-        self.model = Model(self.args)
+            # Load the model
+            self.model = Model(self.args)
 
-        if self.args.eval:
-            self.model.load_state_dict(self.loader)
+            if self.args.eval:
+                self.model.load_state_dict(self.loader)
 
-        if self.args.cuda:
-            self.model.cuda()
+            if self.args.cuda:
+                self.model.cuda()
 
-        self.best_test_accuracy = 0.0
-        self.best_test_epoch = 0
+            self.best_test_accuracy = 0.0
+            self.best_test_epoch = 0
 
-        if self.args.eval is False:
+            if self.args.eval is False:
 
-            if self.args.optimiser == "sgd":
-                self.opt = optim.SGD(
-                    self.model.parameters(),
-                    lr=self.args.learning_rate,
-                    momentum=self.args.momentum,
-                    weight_decay=self.args.weight_decay,
-                )
-            elif self.args.optimiser == "adam":
-                self.opt = optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=self.args.weight_decay)
-            else:
-                raise Exception("Unknown optimiser {}".format(self.args.optim))
+                if self.args.optimiser == "sgd":
+                    self.opt = optim.SGD(
+                        self.model.parameters(),
+                        lr=self.args.learning_rate,
+                        momentum=self.args.momentum,
+                        weight_decay=self.args.weight_decay,
+                    )
+                elif self.args.optimiser == "adam":
+                    self.opt = optim.Adam(
+                        self.model.parameters(),
+                        lr=self.args.learning_rate,
+                        weight_decay=self.args.weight_decay,
+                    )
+                else:
+                    raise Exception("Unknown optimiser {}".format(self.args.optim))
 
-            if self.args.lr_scheduler:
-                self.lr_scheduler = optim.lr_scheduler.MultiStepLR(
-                    self.opt,
-                    milestones=self.args.lr_schedule,
-                    gamma=self.args.lr_decay_factor,
-                )
-            if self.args.lr_reducer:
-                self.lr_reducer = torch.optim.lr_scheduler.ReduceLROnPlateau(self.opt, factor=np.sqrt(0.1),
-                                                                        cooldown=0,
-                                                                        patience=5,
-                                                                        min_lr=0.5e-6)
+                if self.args.lr_scheduler:
+                    self.lr_scheduler = optim.lr_scheduler.MultiStepLR(
+                        self.opt,
+                        milestones=self.args.lr_schedule,
+                        gamma=self.args.lr_decay_factor,
+                    )
+                if self.args.lr_reducer:
+                    self.lr_reducer = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                        self.opt,
+                        factor=np.sqrt(0.1),
+                        cooldown=0,
+                        patience=5,
+                        min_lr=0.5e-6,
+                    )
 
-            # Loss function
-            self.criterion = nn.CrossEntropyLoss()
+                # Loss function
+                self.criterion = nn.CrossEntropyLoss()
 
-            self.args.logdir = os.path.join("checkpoints", self.args.exp_name)
-            utils.create_dir(self.args.logdir)
+                self.args.logdir = os.path.join("checkpoints", self.args.exp_name)
+                utils.create_dir(self.args.logdir)
 
-            if self.args.filelogger:
-                self.logger_path = os.path.join("checkpoints", self.args.exp_name, "%s_values.log" % self.args.exp_name)
-                self.logger = {
-                    "train_loss_per_iter": [],
-                    "train_loss_per_epoch": [],
-                    "val_loss_per_iter": [],
-                    "val_loss_per_epoch": [],
-                    "val_accuracy_per_iter": [],
-                    "val_accuracy_per_epoch": [],
-                    "test_loss": [],
-                    "test_accuracy": [],
-                    "best_epoch": 0,
-                    "best_test_accuracy": 0.0,
-                    "ssl_loss": [],
-                    "ssl_accuracy": [],
-                    "ssl_correct": []
-                }
-            if self.args.tensorboard:
-                self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
-                self.writer.add_text("Arguments", params.print_args(self.args))
+                if self.args.filelogger:
+                    self.logger_path = os.path.join(
+                        "checkpoints",
+                        self.args.exp_name,
+                        "%s_values.log" % self.args.exp_name,
+                    )
+                    self.logger = {
+                        "train_loss_per_iter": [],
+                        "train_loss_per_epoch": [],
+                        "val_loss_per_iter": [],
+                        "val_loss_per_epoch": [],
+                        "val_accuracy_per_iter": [],
+                        "val_accuracy_per_epoch": [],
+                        "test_loss": [],
+                        "test_accuracy": [],
+                        "best_epoch": 0,
+                        "best_test_accuracy": 0.0,
+                        "ssl_loss": [],
+                        "ssl_accuracy": [],
+                        "ssl_correct": [],
+                    }
+                if self.args.tensorboard:
+                    self.writer = SummaryWriter(log_dir=self.args.logdir, flush_secs=30)
+                    self.writer.add_text("Arguments", params.print_args(self.args))
 
     def train_val(self, epoch):
         """Train the model for one epoch and evaluate on val split if log_intervals have passed"""
@@ -258,7 +276,7 @@ class ModelTrainer:
             acc = 100.0 * correct / n_examples
 
             if verbose:
-                loss, acc = utils.convert_for_print(loss, acc)
+                loss, acc, correct = utils.convert_for_print(loss, acc, correct)
                 print(
                     "\nLabel Generation Performance Average loss: %0.4f, Accuracy: %d/%d (%0.1f%%)"
                     % (loss, correct, n_examples, acc)
@@ -272,7 +290,9 @@ class ModelTrainer:
                 if self.args.tensorboard:
                     self.writer.add_scalar("SSL_Loss_at_Epoch", loss, epoch)
                     self.writer.add_scalar("SSL_Accuracy_at_Epoch", acc, epoch)
-                    self.writer.add_scalar("SSL_Correct_Labels_at_Epoch", correct, epoch)
+                    self.writer.add_scalar(
+                        "SSL_Correct_Labels_at_Epoch", correct, epoch
+                    )
 
         return predictions_indices, predictions_labels
 
@@ -297,7 +317,10 @@ class ModelTrainer:
 
         if self.args.tensorboard:
             if self.args.filelogger:
-                text = "Epoch: %d Test Accuracy:%0.1f" % (self.logger["best_epoch"], self.logger["best_test_accuracy"])
+                text = "Epoch: %d Test Accuracy:%0.1f" % (
+                    self.logger["best_epoch"],
+                    self.logger["best_test_accuracy"],
+                )
                 self.writer.add_text("Best Test Performance", text)
             self.writer.close()
         if self.args.filelogger:
@@ -318,7 +341,9 @@ class ModelTrainer:
             self.evaluate("Test", epoch, verbose=True)
 
             if not self.dataloader.stop_label_generation:
-                predictions_indices, predictions_labels = self.generate_labels_for_ssl(epoch, n_batches=4, verbose=True)
+                predictions_indices, predictions_labels = self.generate_labels_for_ssl(
+                    epoch, n_batches=4, verbose=True
+                )
 
             if self.args.lr_scheduler:
                 self.lr_scheduler.step()
@@ -335,12 +360,46 @@ class ModelTrainer:
 
         if self.args.tensorboard:
             if self.args.filelogger:
-                text = "Epoch: %d Test Accuracy:%0.1f" % (self.logger["best_epoch"], self.logger["best_test_accuracy"])
+                text = "Epoch: %d Test Accuracy:%0.1f" % (
+                    self.logger["best_epoch"],
+                    self.logger["best_test_accuracy"],
+                )
                 self.writer.add_text("Best Test Performance", text)
             self.writer.close()
         if self.args.filelogger:
             utils.write_log_to_json(self.logger_path, self.logger)
         self.epoch_timer.time_since_init(print_str="Total")
+
+    def gmm_train_val_test(self):
+        train_data = self.dataloader.full_supervised_train_dataset.train_data
+        train_labels = self.dataloader.full_supervised_train_dataset.train_labels
+
+        train_data = train_data / 255
+
+        mean = np.array(self.args.cifar10_mean_color)[np.newaxis][np.newaxis][
+            np.newaxis
+        ]
+        std = np.array(self.args.cifar10_std_color)[np.newaxis][np.newaxis][np.newaxis]
+
+        train_data = (train_data - mean) / std
+
+        train_data = train_data.reshape(train_data.shape[0], -1)
+
+        cv_types = ["spherical", "diag", "full", "tied"]
+        for cv_type in cv_types:
+            gmm = mixture.GaussianMixture(n_components=10, covariance_type=cv_type)
+            gmm.fit(train_data)
+            clusters = gmm.predict(train_data)
+            labels = np.zeros_like(clusters)
+            for i in range(10):
+                mask = clusters == i
+                labels[mask] = mode(train_labels[mask])[0]
+
+            correct1 = np.equal(clusters, train_labels).sum()
+            correct2 = np.equal(labels, train_labels).sum()
+            print("%d/49000 (%0.2f%%)" % (correct1, correct1 / 49000))
+            print("%d/49000 (%0.2f%%)" % (correct2, correct2 / 49000))
+
 
 
 if __name__ == "__main__":
@@ -348,9 +407,11 @@ if __name__ == "__main__":
     utils.set_random_seed(args.seed, args.cuda)
     trainer = ModelTrainer(args=args)
     if args.eval is False:
-        if args.training_mode=="supervised":
+        if args.training_mode == "supervised":
             trainer.train_val_test()
-        elif args.training_mode=="semi-supervised":
+        elif args.training_mode == "semi-supervised":
             trainer.ssl_train_val_test()
+        elif args.training_mode == "gmm":
+            trainer.gmm_train_val_test()
     if args.eval is True:
         trainer.evaluate("Test", verbose=True)

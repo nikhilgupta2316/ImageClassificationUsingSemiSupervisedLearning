@@ -2,15 +2,17 @@
 
 source activate img-classifcation
 
-EXP_NAME=resnet
+EXP_NAME=resnet-49k
 
 flags="--model resnet \
+       --train-data-size 49000 \
+       --batch-size 64 \
+       --epochs 100 \
        --data-aug \
        --optimiser adam \
        --learning-rate 0.001 \
        --lr-reducer \
-       --epochs 40 \
-       --batch-size 64 \
+       --weight-decay 5e-4 \
        --exp-name ${EXP_NAME} \
        --tensorboard \
        --filelogger "

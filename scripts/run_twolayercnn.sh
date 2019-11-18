@@ -2,16 +2,17 @@
 
 source activate img-classifcation
 
-EXP_NAME=twolayercnn
+EXP_NAME=twolayercnn-49k
 
 flags="--model twolayercnn \
+       --train-data-size 49000 \
+       --batch-size 64 \
+       --epochs 160 \
        --data-aug \
        --optimiser adam \
        --learning-rate 0.001 \
        --lr-reducer \
-       --epochs 80 \
-       --batch-size 64 \
-       --train-data-size 49000\
+       --weight-decay 5e-4 \
        --exp-name ${EXP_NAME} \
        --tensorboard \
        --filelogger "

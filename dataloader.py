@@ -34,7 +34,6 @@ def get_train_indices_for_ssl(CIFAR10_dataset, n_labeled):
 
 
 class DataLoader:
-
     def __init__(self, args):
         self.args = args
 
@@ -45,13 +44,17 @@ class DataLoader:
 
         # Normalisation Transform
         if self.args.pretrained:
-            normalise = [transforms.Normalize(
-                self.args.imagenet_mean_color, self.args.imagenet_std_color
-            )]
+            normalise = [
+                transforms.Normalize(
+                    self.args.imagenet_mean_color, self.args.imagenet_std_color
+                )
+            ]
         else:
-            normalise = [transforms.Normalize(
-                self.args.cifar10_mean_color, self.args.cifar10_std_color
-            )]
+            normalise = [
+                transforms.Normalize(
+                    self.args.cifar10_mean_color, self.args.cifar10_std_color
+                )
+            ]
 
         # Model Specific Transform
         if self.args.model == "alexnet":
@@ -66,7 +69,9 @@ class DataLoader:
             if self.args.model == "resnet":
                 data_augmentation = [
                     transforms.RandomHorizontalFlip(),
-                    transforms.RandomAffine(degrees=0.0, translate=(0.1,0.1), resample=PIL.Image.NEAREST),
+                    transforms.RandomAffine(
+                        degrees=0.0, translate=(0.1, 0.1), resample=PIL.Image.NEAREST
+                    ),
                 ]
             else:
                 data_augmentation = [
@@ -85,7 +90,7 @@ class DataLoader:
 
         # Datasets and DataLoaders
         if self.args.eval is False:
-            if self.args.training_mode=="supervised":
+            if self.args.training_mode == "supervised":
                 # ########################## Fully Supervised ################################### #
                 self.full_supervised_train_dataset = CIFAR10(
                     self.args.cifar10_dir,
@@ -97,13 +102,20 @@ class DataLoader:
                     self.train_dataset = self.full_supervised_train_dataset
                 else:
                     # ###################### Partially Supervised ############################### #
-                    train_labeled_idxs, train_unlabeled_idxs = get_train_indices_for_ssl(self.full_supervised_train_dataset, self.args.train_data_size)
+                    (
+                        train_labeled_idxs,
+                        train_unlabeled_idxs,
+                    ) = get_train_indices_for_ssl(
+                        self.full_supervised_train_dataset, self.args.train_data_size
+                    )
                     self.train_labeled_indices = train_labeled_idxs
 
                     self.supervised_train_dataset = CIFAR10(
                         self.args.cifar10_dir,
                         split="train",
-                        train_split_supervised_indices=np.array(self.train_labeled_indices),
+                        train_split_supervised_indices=np.array(
+                            self.train_labeled_indices
+                        ),
                         download=True,
                         transform=self.transform_train,
                     )
@@ -113,7 +125,7 @@ class DataLoader:
                     self.train_dataset, batch_size=self.args.batch_size, shuffle=True
                 )
 
-            elif self.args.training_mode=="semi-supervised":
+            elif self.args.training_mode == "semi-supervised" or "gmm":
                 # ########################### Semi Supervised ################################### #
                 self.full_supervised_train_dataset = CIFAR10(
                     self.args.cifar10_dir,
@@ -121,7 +133,9 @@ class DataLoader:
                     download=True,
                     transform=self.transform_train,
                 )
-                train_labeled_idxs, train_unlabeled_idxs = get_train_indices_for_ssl(self.full_supervised_train_dataset, self.args.train_data_size)
+                train_labeled_idxs, train_unlabeled_idxs = get_train_indices_for_ssl(
+                    self.full_supervised_train_dataset, self.args.train_data_size
+                )
                 self.train_labeled_indices = train_labeled_idxs
                 self.train_unlabeled_indices = train_unlabeled_idxs
 
@@ -135,15 +149,21 @@ class DataLoader:
                 self.unsupervised_train_dataset = CIFAR10(
                     self.args.cifar10_dir,
                     split="train",
-                    train_split_supervised_indices=np.array(self.train_unlabeled_indices),
+                    train_split_supervised_indices=np.array(
+                        self.train_unlabeled_indices
+                    ),
                     download=True,
                     transform=self.transform_train,
                 )
                 self.supervised_train_loader = torch.utils.data.DataLoader(
-                    self.supervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
+                    self.supervised_train_dataset,
+                    batch_size=self.args.batch_size,
+                    shuffle=True,
                 )
                 self.unsupervised_train_loader = torch.utils.data.DataLoader(
-                    self.unsupervised_train_dataset, batch_size=self.args.ssl_label_generation_batch_size, shuffle=True
+                    self.unsupervised_train_dataset,
+                    batch_size=self.args.ssl_label_generation_batch_size,
+                    shuffle=True,
                 )
             # ############################## Val Split ########################################## #
             self.val_dataset = CIFAR10(
@@ -157,7 +177,10 @@ class DataLoader:
             )
         # ################################ Test Split ########################################### #
         self.test_dataset = CIFAR10(
-            self.args.cifar10_dir, split="test", download=True, transform=self.transform_test
+            self.args.cifar10_dir,
+            split="test",
+            download=True,
+            transform=self.transform_test,
         )
         self.test_loader = torch.utils.data.DataLoader(
             self.test_dataset, batch_size=self.args.test_batch_size, shuffle=True
@@ -173,14 +196,27 @@ class DataLoader:
             download=True,
             transform=self.transform_train,
         )
-        if len(predictions_indices)!=0:
-            indices2array_indices = {idx:i for i, idx in enumerate(self.supervised_train_dataset.train_indices)}
-            array_indices = np.array([indices2array_indices[index] for index in predictions_indices])
-            self.supervised_train_dataset.train_labels[array_indices] = predictions_labels
+        if len(predictions_indices) != 0:
+            indices2array_indices = {
+                idx: i
+                for i, idx in enumerate(self.supervised_train_dataset.train_indices)
+            }
+            array_indices = np.array(
+                [indices2array_indices[index] for index in predictions_indices]
+            )
+            self.supervised_train_dataset.train_labels[
+                array_indices
+            ] = predictions_labels
 
-            self.train_unlabeled_indices = [idx for idx in self.train_unlabeled_indices if idx not in predictions_indices]
+            self.train_unlabeled_indices = [
+                idx
+                for idx in self.train_unlabeled_indices
+                if idx not in predictions_indices
+            ]
 
-        assert len(self.train_labeled_indices) + len(self.train_unlabeled_indices) == len(self.full_supervised_train_dataset.train_labels)
+        assert len(self.train_labeled_indices) + len(
+            self.train_unlabeled_indices
+        ) == len(self.full_supervised_train_dataset.train_labels)
 
         self.supervised_train_loader = torch.utils.data.DataLoader(
             self.supervised_train_dataset, batch_size=self.args.batch_size, shuffle=True
@@ -195,12 +231,26 @@ class DataLoader:
                 transform=self.transform_train,
             )
             self.unsupervised_train_loader = torch.utils.data.DataLoader(
-                self.unsupervised_train_dataset, batch_size=self.args.ssl_label_generation_batch_size, shuffle=True
+                self.unsupervised_train_dataset,
+                batch_size=self.args.ssl_label_generation_batch_size,
+                shuffle=True,
             )
         else:
             self.stop_label_generation = True
 
         self.train_loader = self.supervised_train_loader
 
-        print("Labeled Training data: %d/%d" % (len(self.supervised_train_dataset.train_labels), len(self.full_supervised_train_dataset.train_labels)))
-        print("Unlabeled Training data: %d/%d" % (len(self.supervised_train_dataset.train_labels), len(self.full_supervised_train_dataset.train_labels)))
+        print(
+            "Labeled Training data: %d/%d"
+            % (
+                len(self.supervised_train_dataset.train_labels),
+                len(self.full_supervised_train_dataset.train_labels),
+            )
+        )
+        print(
+            "Unlabeled Training data: %d/%d"
+            % (
+                len(self.supervised_train_dataset.train_labels),
+                len(self.full_supervised_train_dataset.train_labels),
+            )
+        )
